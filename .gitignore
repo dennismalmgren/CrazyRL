@@ -134,3 +134,6 @@ dmypy.json
 .idea/
 #trained_model/
 **.DS_Store
+
+#vscode configuration
+.vscode/

@@ -73,22 +73,28 @@ train_max_grad_norm = 40.0
 eval_evaluation_episodes = 5
 eval_evaluation_interval = 100
 
-#Define the environment and torchrl-ify it
-env: ParallelEnv = Circle(
-    drone_ids=np.array([0, 1]),
-    render_mode=None,
-    #render_mode="human",    # or real, or None
-    init_flying_pos=np.array([[0, 0, 1], [2, 2, 1]]),
-)
-env.reset() # Hack to ensure env.agents is populated.
+def make_env(render_mode=None):
+    #Define the environment and torchrl-ify it
+    env: ParallelEnv = Circle(
+        drone_ids=np.array([0, 1]),
+        render_mode=render_mode,
+        #render_mode="human",    # or real, or None
+        init_flying_pos=np.array([[0, 0, 1], [2, 2, 1]]),
+    )
+    env.reset() # Hack to ensure env.agents is populated.
 
-env = PettingZooWrapper(env,
-                        group_map = {"agents": env.agents},)
-env = TransformedEnv(
-    env,
-    RewardSum(in_keys=[env.reward_key], out_keys=[("agents", "episode_reward")]),
-)
+    env = PettingZooWrapper(env,
+                            group_map = {"agents": env.agents},)
+    env = TransformedEnv(
+        env,
+        RewardSum(in_keys=[env.reward_key], out_keys=[("agents", "episode_reward")]),
+    )
+    return env
 
+
+env = make_env()
+
+render_env = make_env(render_mode="human")
 # Define a policy
 actor_net = nn.Sequential(
     MultiAgentMLP(
@@ -235,7 +241,9 @@ for i, tensordict_data in enumerate(collector):
     with torch.no_grad():
         rollout = env.rollout(policy=policy, max_steps=10000, auto_cast_to_device=True)
         print("Episode reward: ", rollout["next", "agents", "episode_reward"].sum())
-        
+    # if i % 10 == 0:
+    #     with torch.no_grad():
+    #         rollout = render_env.rollout(policy=policy, max_steps=10000, auto_cast_to_device=True)
     sampling_start = time.time()
 
 print('done')
